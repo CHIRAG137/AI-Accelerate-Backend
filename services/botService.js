@@ -5,47 +5,56 @@ const QAHistory = require("../models/QAHistory");
 const Customization = require("../models/Customisation");
 const { extractTextFromPDF } = require("../utils/textExtractor");
 const { generateQAsViaGPT, getEmbedding } = require("../utils/gptUtils");
-const { embedText, cosineSimilarity } = require("../utils/embedUtils");
 const logger = require("../utils/logger");
 const FlowSession = require("../models/FlowSession");
+const { 
+  indexQA, 
+  bulkIndexQAs, 
+  advancedHybridSearch 
+} = require("./elasticService");
 
-// Helper function to process a single chunk
+// Helper function to process a single chunk with Elastic indexing
 async function processChunk(chunk, botId, name, description, source, index) {
   try {
     const qas = await generateQAsViaGPT(chunk, name, description);
 
-    // Process all Q&As in parallel
-    const qaPromises = qas.map(async (qa) => {
+    // Prepare batch for Elastic bulk indexing
+    const qaBatch = [];
+
+    for (const qa of qas) {
       const { question, answer } = qa;
 
       if (question && answer) {
-        const embedding = await embedText(question);
+        const embedding = await getEmbedding(question);
 
-        await QAHistory.create({
-          bot: botId,
+        qaBatch.push({
+          botId,
           question,
           answer,
-          embedding: Buffer.from(embedding.buffer),
+          embedding,
+          metadata: {
+            source,
+            chunk_index: index,
+            generated_from: 'gpt',
+            content_type: source.includes('PDF') ? 'pdf' : 'markdown'
+          }
         });
-
-        return { success: true, question: question.substring(0, 50) + "..." };
       }
-      return { success: false };
-    });
+    }
 
-    const results = await Promise.allSettled(qaPromises);
-    const successful = results.filter(
-      (r) => r.status === "fulfilled" && r.value.success
-    ).length;
+    // Bulk index to Elasticsearch
+    if (qaBatch.length > 0) {
+      await bulkIndexQAs(qaBatch);
+    }
 
     logger.debug(`Processed ${source} chunk`, {
       botId,
       index,
-      successful,
+      successful: qaBatch.length,
       total: qas.length,
     });
 
-    return { success: true, qaCount: successful };
+    return { success: true, qaCount: qaBatch.length };
   } catch (err) {
     logger.error(`Error processing ${source} chunk`, {
       botId,
@@ -371,17 +380,17 @@ exports.createBot = async (req) => {
   });
 
   // Build success message
-  let message = "Bot created successfully";
+  let message = "Bot created successfully with Elastic hybrid search";
   const processedSources = [];
 
   if (markdownQAs > 0) {
     processedSources.push(
-      `${parsedScrapedContent.length} scraped pages (${markdownQAs} Q&As)`
+      `${parsedScrapedContent.length} scraped pages (${markdownQAs} Q&As indexed in Elasticsearch)`
     );
   }
 
   if (pdfQAs > 0) {
-    processedSources.push(`uploaded PDF (${pdfQAs} Q&As)`);
+    processedSources.push(`uploaded PDF (${pdfQAs} Q&As indexed in Elasticsearch)`);
   }
 
   if (processedSources.length > 0) {
@@ -396,12 +405,13 @@ exports.createBot = async (req) => {
 
   message += ".";
 
-  logger.info("Bot creation completed", {
+  logger.info("Bot creation completed with Elastic integration", {
     botId: bot._id,
     markdownQAs,
     pdfQAs,
     totalQAs: markdownQAs + pdfQAs,
     slackJoined,
+    searchEngine: 'elasticsearch'
   });
 
   return {
@@ -414,6 +424,7 @@ exports.createBot = async (req) => {
       pdf_qas: pdfQAs,
       total_qas: markdownQAs + pdfQAs,
       slack_integrated: slackJoined,
+      search_engine: 'elasticsearch_hybrid'
     },
   };
 };
@@ -425,41 +436,73 @@ exports.askBot = async (question, botId) => {
     throw new Error("Bot not found");
   }
 
-  logger.info("Bot asked a question", { botId, question });
+  logger.info("Bot asked a question - using Elastic hybrid search", { botId, question });
 
+  // Generate embedding for the question
   const inputEmbedding = await getEmbedding(question);
-  const qas = await QAHistory.find({ bot: botId });
 
-  let bestMatch = null,
-    bestScore = -1;
-  for (let qa of qas) {
-    const storedEmbedding = new Float32Array(qa.embedding.buffer);
-    const score = cosineSimilarity(inputEmbedding, storedEmbedding);
-    if (score > bestScore) {
-      bestScore = score;
-      bestMatch = qa;
+  // Perform advanced hybrid search using Elasticsearch
+  const searchResults = await advancedHybridSearch(
+    botId,
+    question,
+    inputEmbedding,
+    {
+      size: 5,
+      minScore: 0.5
     }
-  }
+  );
 
-  if (bestScore > 0.85 && bestMatch) {
-    await QAHistory.create({
-      bot: botId,
+  if (searchResults.results.length > 0) {
+    const bestMatch = searchResults.results[0];
+
+    // Index this new Q&A interaction
+    await indexQA(
+      botId,
       question,
-      answer: bestMatch.answer,
-      embedding: Buffer.from(inputEmbedding.buffer),
+      bestMatch.answer,
+      inputEmbedding,
+      {
+        source: 'user_query',
+        original_question_id: bestMatch.id,
+        search_score: bestMatch.score,
+        vector_score: bestMatch.vector_score,
+        keyword_score: bestMatch.keyword_score
+      }
+    );
+
+    logger.info("Best match found via Elastic hybrid search", {
+      botId,
+      score: bestMatch.score,
+      vector_score: bestMatch.vector_score,
+      keyword_score: bestMatch.keyword_score,
+      question: question.substring(0, 50),
+      searchMethods: searchResults.searchMethods
     });
 
-    logger.info("Best QA match found", { botId, score: bestScore, question });
-
-    return { answer: bestMatch.answer, score: bestScore, source: "qa" };
+    return {
+      answer: bestMatch.answer,
+      score: bestMatch.score,
+      vector_score: bestMatch.vector_score,
+      keyword_score: bestMatch.keyword_score,
+      source: "elastic_hybrid_search",
+      search_methods: searchResults.searchMethods,
+      total_results: searchResults.total,
+      confidence: bestMatch.score > 0.85 ? 'high' : bestMatch.score > 0.7 ? 'medium' : 'low'
+    };
   }
 
-  logger.warn("No strong QA match found", {
+  logger.warn("No strong match found via Elastic hybrid search", {
     botId,
-    score: bestScore,
     question,
+    totalResults: searchResults.total
   });
-  return { message: "No match found.", score: bestScore };
+
+  return {
+    message: "No strong match found. Please rephrase your question or provide more context.",
+    score: 0,
+    source: "elastic_hybrid_search",
+    total_results: searchResults.total
+  };
 };
 
 exports.getAllChatBots = async (userId) => {

@@ -1,29 +1,112 @@
 const botService = require("../services/botService");
 const logger = require("../utils/logger");
 const responseBuilder = require("../utils/responseBuilder");
+const { getBotAnalytics } = require("../services/elasticService");
 
 exports.createBot = async (req, res) => {
   try {
     const result = await botService.createBot(req);
 
-    logger.info("Bot created successfully", { userId: req.user?._id, botId: result._id });
-    return responseBuilder.created(res, result, "Bot created successfully");
+    logger.info("Bot created successfully with Elastic", { 
+      userId: req.user?._id, 
+      botId: result.bot_id,
+      searchEngine: 'elasticsearch' 
+    });
+    
+    return responseBuilder.created(res, result, result.message);
   } catch (error) {
-    logger.error("Create bot error", { error: error.message, stack: error.stack });
-    return responseBuilder.error(res, "Failed to create bot");
+    logger.error("Create bot error", { 
+      error: error.message, 
+      stack: error.stack 
+    });
+    return responseBuilder.internalError(res, "Failed to create bot");
   }
 };
 
 exports.askBot = async (req, res) => {
   try {
     const { question, botId } = req.body;
+    
+    if (!question || !botId) {
+      return responseBuilder.badRequest(res, "Missing required fields: question and botId");
+    }
+
     const result = await botService.askBot(question, botId);
 
-    logger.info("Bot answered question", { botId, question });
+    logger.info("Bot answered question via Elastic hybrid search", { 
+      botId, 
+      question: question.substring(0, 50),
+      source: result.source,
+      confidence: result.confidence
+    });
+    
     return responseBuilder.ok(res, result, "Bot responded successfully");
   } catch (error) {
-    logger.error("Ask bot error", { error: error.message, stack: error.stack });
+    logger.error("Ask bot error", { 
+      error: error.message, 
+      stack: error.stack 
+    });
     return responseBuilder.error(res, "Failed to get bot response");
+  }
+};
+
+/**
+ * New endpoint: Get bot analytics from Elasticsearch
+ */
+exports.getBotAnalytics = async (req, res) => {
+  try {
+    const { botId } = req.params;
+    
+    if (!botId) {
+      return responseBuilder.badRequest(res, "Bot ID is required");
+    }
+
+    const analytics = await getBotAnalytics(botId);
+
+    logger.info("Bot analytics retrieved", { 
+      botId, 
+      totalQAs: analytics.total 
+    });
+    
+    return responseBuilder.ok(res, analytics, "Analytics retrieved successfully");
+  } catch (error) {
+    logger.error("Get bot analytics error", { 
+      error: error.message, 
+      stack: error.stack 
+    });
+    return responseBuilder.error(res, "Failed to retrieve analytics");
+  }
+};
+
+/**
+ * New endpoint: Advanced search with custom parameters
+ */
+exports.advancedSearch = async (req, res) => {
+  try {
+    const { question, botId, searchOptions } = req.body;
+    
+    if (!question || !botId) {
+      return responseBuilder.badRequest(res, "Missing required fields: question and botId");
+    }
+
+    const { getEmbedding } = require("../utils/gptUtils");
+    const { advancedHybridSearch } = require("../services/elasticService");
+
+    const embedding = await getEmbedding(question);
+    const results = await advancedHybridSearch(botId, question, embedding, searchOptions || {});
+
+    logger.info("Advanced search completed", { 
+      botId, 
+      resultsCount: results.results.length 
+    });
+    
+    return responseBuilder.ok(res, results, "Search completed successfully");
+  } catch (error) {
+    logger.error("Advanced search error", { 
+      error: error.message, 
+      stack: error.stack 
+    });
+    return responseBuilder.error(res, "Failed to perform search");
   }
 };
 

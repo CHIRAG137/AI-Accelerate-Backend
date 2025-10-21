@@ -15,5 +15,15 @@ router.get("/customisation/:botId", botController.getCustomization);
 router.post("/customisation/:botId", authMiddleware, botController.saveCustomization);
 router.get("/:botId/history", authMiddleware, botController.getAllChatHistories);
 router.get("/:botId/history/:sessionId", authMiddleware, botController.getChatHistoryBySession);
+router.get(
+  '/:botId/analytics',
+  authMiddleware,
+  botController.getBotAnalytics
+);
+router.post(
+  '/search/advanced',
+  authMiddleware,
+  botController.advancedSearch
+);
 
 module.exports = router;
