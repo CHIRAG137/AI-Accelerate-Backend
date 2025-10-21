@@ -42,7 +42,7 @@ async function initializeIndices() {
               },
               embedding: {
                 type: 'dense_vector',
-                dims: 768, // Gemini embedding-001 produces 768-dimensional vectors
+                dims: 1536, // Gemini embedding-001 produces 768-dimensional vectors
                 index: true,
                 similarity: 'cosine'
               },
@@ -96,7 +96,7 @@ async function initializeIndices() {
               title: { type: 'text' },
               embedding: {
                 type: 'dense_vector',
-                dims: 768,
+                dims: 1536,
                 index: true,
                 similarity: 'cosine'
               },

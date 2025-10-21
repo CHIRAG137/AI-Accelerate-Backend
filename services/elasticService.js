@@ -1,5 +1,5 @@
-const { esClient, INDICES } = require('../config/elasticSearch');
-const logger = require('../utils/logger');
+const { esClient, INDICES } = require("../config/elasticSearch");
+const logger = require("../utils/logger");
 
 /**
  * Index a Q&A pair with embedding for hybrid search
@@ -13,26 +13,26 @@ async function indexQA(botId, question, answer, embedding, metadata = {}) {
       embedding: Array.from(embedding), // Convert Float32Array to regular array
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      metadata
+      metadata,
     };
 
     const result = await esClient.index({
       index: INDICES.QA_HISTORY,
       document: doc,
-      refresh: true // Make immediately searchable
+      refresh: true, // Make immediately searchable
     });
 
-    logger.debug('Q&A indexed in Elasticsearch', {
+    logger.debug("Q&A indexed in Elasticsearch", {
       botId,
       docId: result._id,
-      question: question.substring(0, 50)
+      question: question.substring(0, 50),
     });
 
     return result._id;
   } catch (error) {
-    logger.error('Failed to index Q&A in Elasticsearch', {
+    logger.error("Failed to index Q&A in Elasticsearch", {
       error: error.message,
-      botId
+      botId,
     });
     throw error;
   }
@@ -43,37 +43,42 @@ async function indexQA(botId, question, answer, embedding, metadata = {}) {
  */
 async function bulkIndexQAs(qaPairs) {
   try {
-    const operations = qaPairs.flatMap(({ botId, question, answer, embedding, metadata }) => [
-      { index: { _index: INDICES.QA_HISTORY } },
-      {
-        bot_id: botId,
-        question,
-        answer,
-        embedding: Array.from(embedding),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        metadata: metadata || {}
-      }
-    ]);
+    const operations = qaPairs.flatMap(
+      ({ botId, question, answer, embedding, metadata }) => [
+        { index: { _index: INDICES.QA_HISTORY } },
+        {
+          bot_id: botId,
+          question,
+          answer,
+          embedding: Array.from(embedding),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          metadata: metadata || {},
+        },
+      ]
+    );
 
     const result = await esClient.bulk({
       operations,
-      refresh: true
+      refresh: true,
     });
 
     if (result.errors) {
-      const errors = result.items.filter(item => item.index?.error);
-      logger.warn('Some Q&As failed to index', { errorCount: errors.length });
+      const errors = result.items.filter((item) => item.index?.error);
+      logger.warn("Some Q&As failed to index", {
+        errorCount: errors.length,
+        errors,
+      });
     }
 
-    logger.info('Bulk indexed Q&As', {
+    logger.info("Bulk indexed Q&As", {
       total: qaPairs.length,
-      errors: result.errors ? 'yes' : 'no'
+      errors: result.errors ? "yes" : "no",
     });
 
     return result;
   } catch (error) {
-    logger.error('Failed to bulk index Q&As', { error: error.message });
+    logger.error("Failed to bulk index Q&As", { error: error.message });
     throw error;
   }
 }
@@ -86,8 +91,8 @@ async function hybridSearch(botId, query, embedding, options = {}) {
   const {
     size = 5,
     semanticWeight = 0.7, // Weight for semantic search
-    keywordWeight = 0.3,  // Weight for keyword search
-    minScore = 0.5
+    keywordWeight = 0.3, // Weight for keyword search
+    minScore = 0.5,
   } = options;
 
   try {
@@ -99,9 +104,7 @@ async function hybridSearch(botId, query, embedding, options = {}) {
         min_score: minScore,
         query: {
           bool: {
-            must: [
-              { term: { bot_id: botId } }
-            ],
+            must: [{ term: { bot_id: botId } }],
             should: [
               // Semantic search using vector similarity (kNN)
               {
@@ -113,23 +116,23 @@ async function hybridSearch(botId, query, embedding, options = {}) {
                     `,
                     params: {
                       query_vector: Array.from(embedding),
-                      weight: semanticWeight
-                    }
-                  }
-                }
+                      weight: semanticWeight,
+                    },
+                  },
+                },
               },
               // Keyword search using BM25
               {
                 multi_match: {
                   query,
-                  fields: ['question^2', 'answer'], // Boost question matches
-                  type: 'best_fields',
-                  boost: keywordWeight
-                }
-              }
+                  fields: ["question^2", "answer"], // Boost question matches
+                  type: "best_fields",
+                  boost: keywordWeight,
+                },
+              },
             ],
-            minimum_should_match: 1
-          }
+            minimum_should_match: 1,
+          },
         },
         // Add aggregations for analytics
         aggs: {
@@ -138,42 +141,42 @@ async function hybridSearch(botId, query, embedding, options = {}) {
               script: {
                 source: "cosineSimilarity(params.query_vector, 'embedding')",
                 params: {
-                  query_vector: Array.from(embedding)
-                }
-              }
-            }
-          }
-        }
-      }
+                  query_vector: Array.from(embedding),
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
-    const hits = result.hits.hits.map(hit => ({
+    const hits = result.hits.hits.map((hit) => ({
       id: hit._id,
       score: hit._score,
       question: hit._source.question,
       answer: hit._source.answer,
       metadata: hit._source.metadata,
-      created_at: hit._source.created_at
+      created_at: hit._source.created_at,
     }));
 
-    logger.info('Hybrid search completed', {
+    logger.info("Hybrid search completed", {
       botId,
       query: query.substring(0, 50),
       resultsCount: hits.length,
       topScore: hits[0]?.score || 0,
-      avgScore: result.aggregations?.avg_score?.value || 0
+      avgScore: result.aggregations?.avg_score?.value || 0,
     });
 
     return {
       results: hits,
       total: result.hits.total.value,
-      avgScore: result.aggregations?.avg_score?.value || 0
+      avgScore: result.aggregations?.avg_score?.value || 0,
     };
   } catch (error) {
-    logger.error('Hybrid search failed', {
+    logger.error("Hybrid search failed", {
       error: error.message,
       botId,
-      query
+      query,
     });
     throw error;
   }
@@ -195,36 +198,16 @@ async function advancedHybridSearch(botId, query, embedding, options = {}) {
         body: {
           size: size * 2,
           query: {
-            bool: {
-              must: [
-                { term: { bot_id: botId } }
-              ],
-              filter: [
-                {
-                  script: {
-                    script: {
-                      source: "cosineSimilarity(params.query_vector, 'embedding') > params.min_score",
-                      params: {
-                        query_vector: Array.from(embedding),
-                        min_score: minScore
-                      }
-                    }
-                  }
-                }
-              ]
-            }
-          },
-          script_fields: {
-            vector_score: {
+            script_score: {
+              query: { term: { bot_id: botId } },
               script: {
-                source: "cosineSimilarity(params.query_vector, 'embedding')",
-                params: {
-                  query_vector: Array.from(embedding)
-                }
-              }
-            }
-          }
-        }
+                source:
+                  "cosineSimilarity(params.query_vector, 'embedding') + 1.0", // shift score to avoid negatives
+                params: { query_vector: Array.from(embedding) },
+              },
+            },
+          },
+        },
       }),
       // Pure keyword search
       esClient.search({
@@ -238,16 +221,16 @@ async function advancedHybridSearch(botId, query, embedding, options = {}) {
                 {
                   multi_match: {
                     query,
-                    fields: ['question^3', 'answer^1'],
-                    type: 'best_fields',
-                    fuzziness: 'AUTO'
-                  }
-                }
-              ]
-            }
-          }
-        }
-      })
+                    fields: ["question^3", "answer^1"],
+                    type: "best_fields",
+                    fuzziness: "AUTO",
+                  },
+                },
+              ],
+            },
+          },
+        },
+      }),
     ]);
 
     // Apply Reciprocal Rank Fusion
@@ -257,7 +240,7 @@ async function advancedHybridSearch(botId, query, embedding, options = {}) {
       { k: 60 }
     );
 
-    const topResults = rrfResults.slice(0, size).map(item => ({
+    const topResults = rrfResults.slice(0, size).map((item) => ({
       id: item._id,
       score: item.rrf_score,
       vector_score: item.vector_score,
@@ -265,26 +248,26 @@ async function advancedHybridSearch(botId, query, embedding, options = {}) {
       question: item._source.question,
       answer: item._source.answer,
       metadata: item._source.metadata,
-      created_at: item._source.created_at
+      created_at: item._source.created_at,
     }));
 
-    logger.info('Advanced hybrid search completed', {
+    logger.info("Advanced hybrid search completed", {
       botId,
       query: query.substring(0, 50),
       resultsCount: topResults.length,
-      topScore: topResults[0]?.score || 0
+      topScore: topResults[0]?.score || 0,
     });
 
     return {
       results: topResults,
       total: rrfResults.length,
-      searchMethods: ['vector', 'keyword', 'rrf']
+      searchMethods: ["vector", "keyword", "rrf"],
     };
   } catch (error) {
-    logger.error('Advanced hybrid search failed', {
+    logger.error("Advanced hybrid search failed", {
       error: error.message,
       botId,
-      query
+      query,
     });
     throw error;
   }
@@ -302,13 +285,13 @@ function applyRRF(vectorResults, keywordResults, options = {}) {
     const id = hit._id;
     const rrfScore = 1 / (k + index + 1);
     const vectorScore = hit.fields?.vector_score?.[0] || hit._score;
-    
+
     scoreMap.set(id, {
       ...hit,
       rrf_score: rrfScore,
       vector_score: vectorScore,
       keyword_score: 0,
-      vector_rank: index + 1
+      vector_rank: index + 1,
     });
   });
 
@@ -316,7 +299,7 @@ function applyRRF(vectorResults, keywordResults, options = {}) {
   keywordResults.forEach((hit, index) => {
     const id = hit._id;
     const rrfScore = 1 / (k + index + 1);
-    
+
     if (scoreMap.has(id)) {
       const existing = scoreMap.get(id);
       existing.rrf_score += rrfScore;
@@ -328,14 +311,15 @@ function applyRRF(vectorResults, keywordResults, options = {}) {
         rrf_score: rrfScore,
         vector_score: 0,
         keyword_score: hit._score,
-        keyword_rank: index + 1
+        keyword_rank: index + 1,
       });
     }
   });
 
   // Sort by combined RRF score
-  return Array.from(scoreMap.values())
-    .sort((a, b) => b.rrf_score - a.rrf_score);
+  return Array.from(scoreMap.values()).sort(
+    (a, b) => b.rrf_score - a.rrf_score
+  );
 }
 
 /**
@@ -348,36 +332,39 @@ async function getBotAnalytics(botId) {
       body: {
         size: 0,
         query: {
-          term: { bot_id: botId }
+          term: { bot_id: botId },
         },
         aggs: {
           total_qas: {
-            value_count: { field: 'question.keyword' }
+            value_count: { field: "question.keyword" },
           },
           recent_qas: {
             date_histogram: {
-              field: 'created_at',
-              calendar_interval: 'day',
-              min_doc_count: 0
-            }
+              field: "created_at",
+              calendar_interval: "day",
+              min_doc_count: 0,
+            },
           },
           top_questions: {
             terms: {
-              field: 'question.keyword',
-              size: 10
-            }
-          }
-        }
-      }
+              field: "question.keyword",
+              size: 10,
+            },
+          },
+        },
+      },
     });
 
     return {
       total: result.aggregations.total_qas.value,
       recentActivity: result.aggregations.recent_qas.buckets,
-      topQuestions: result.aggregations.top_questions.buckets
+      topQuestions: result.aggregations.top_questions.buckets,
     };
   } catch (error) {
-    logger.error('Failed to get bot analytics', { error: error.message, botId });
+    logger.error("Failed to get bot analytics", {
+      error: error.message,
+      botId,
+    });
     throw error;
   }
 }
@@ -387,5 +374,5 @@ module.exports = {
   bulkIndexQAs,
   hybridSearch,
   advancedHybridSearch,
-  getBotAnalytics
+  getBotAnalytics,
 };
