@@ -18,7 +18,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: ["http://localhost:8080", "https://tastebot-studio.onrender.com"],
+    origin: ["http://localhost:8080", "https://ai-accelerate-frontend.onrender.com"],
     credentials: true,
   })
 );
