@@ -30,7 +30,7 @@ window.ChatBotWidget = {
   fetchCustomization: async function() {
     try {
       const response = await fetch(
-        `https://tastebot-studio-backend-gvvb.onrender.com/api/bots/customisation/${this.config.botId}`
+        `https://ai-accelerate-backend.onrender.com/api/bots/customisation/${this.config.botId}`
       );
       const data = await response.json();
       
