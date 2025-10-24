@@ -332,7 +332,7 @@ TasteAI Studio shows how **Elastic + Google Cloud** can reimagine human–AI int
 
 # 🔗 Try TasteAI Studio
 
-- **Live Demo:** [https://ai-accelerate-frontend.onrender.com] 
+- **Live Demo:** [https://ai-accelerate-frontend.onrender.com/login] 
 - **Backend GitHub Repository:** [https://github.com/CHIRAG137/AI-Accelerate-Backend] 
 - **Frontend GitHub Repository:** [https://github.com/CHIRAG137/AI-Accelerate-Frontend]  
 
