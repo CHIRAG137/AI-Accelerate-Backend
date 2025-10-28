@@ -12,7 +12,7 @@ The inspiration for **TasteAI Studio** came from observing a common challenge ac
 Teams were either stuck with rigid, rule-based bots or needed expensive developers to build custom solutions.  
 We envisioned a platform where **anyone—from small businesses to enterprise teams—could create sophisticated AI-powered chatbots without writing a single line of code.**
 
-We wanted to leverage **Elastic's hybrid search capabilities** combined with **Google Cloud's cutting-edge generative AI** to build something transformative —  
+We wanted to leverage **Google Chrome Built- In APIs(primarily Summarisation API) and Elastic's hybrid search capabilities** combined with **Google Cloud's cutting-edge generative AI** to build something transformative —  
 a conversational agent that doesn’t just match keywords but **truly understands context**, learns from diverse data sources, and adapts to different use cases.
 
 > 🎯 **Goal:** Democratize AI-powered customer support, internal knowledge management, and interactive experiences.
