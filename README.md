@@ -163,7 +163,7 @@ Elasticsearch powers our **hybrid knowledge retrieval system**, providing enterp
 
 **Hybrid Search Architecture:**
 
-- **Vector Similarity Search:** Dense vector embeddings (768D from Google Cloud's `textembedding-gecko`)  
+- **Vector Similarity Search:** Dense vector embeddings (1536D from Google Cloud's `textembedding-001`)  
 - **BM25 Keyword Search:** Full-text keyword relevance  
 - **Weighted Scoring:** Combines semantic understanding with exact keyword matching  
 
@@ -182,7 +182,7 @@ Google Cloud’s **Vertex AI** powers our intelligent conversational capabilitie
 
 ---
 
-## 🤖 Gemini 1.5 Pro – Generative AI
+## 🤖 Gemini 2.5 Pro – Generative AI
 
 - Automatic Q&A generation from PDFs or web pages  
 - Contextual response generation when no exact match  
@@ -191,9 +191,9 @@ Google Cloud’s **Vertex AI** powers our intelligent conversational capabilitie
 
 ---
 
-## 🧬 Vertex AI Embeddings (`textembedding-gecko@003`)
+## 🧬 Vertex AI Embeddings (`textembedding-001`)
 
-- Semantic understanding through 768D embeddings  
+- Semantic understanding through 1536D embeddings  
 - Language-agnostic and consistent across training/query time
 
 ---
@@ -278,10 +278,6 @@ Google Cloud’s **Vertex AI** powers our intelligent conversational capabilitie
 - Analytics and session summaries drive adoption  
 - Simple integrations significantly increase engagement
 
-## ⚙️ Challenge-Specific Learnings
-- Hybrid search bridges the gap between semantic and keyword retrieval  
-- Elastic + Google Cloud provide complementary strengths for retrieval + generation
-
 ---
 
 # 🔮 What’s Next for TasteAI Studio
@@ -313,9 +309,9 @@ Google Cloud’s **Vertex AI** powers our intelligent conversational capabilitie
 
 ---
 
-# 💡 Why TasteAI Studio Exemplifies the Elastic Challenge
+# 💡 Why TasteAI Studio?
 
-TasteAI Studio embodies the **Elastic Challenge vision** — transforming how people interact with data via hybrid search and generative AI.
+TasteAI Studio embodies the **Long Term Enterprise vision** — transforming how people interact with data via hybrid search and generative AI.
 
 | Feature | Description |
 |:--------|:-------------|
@@ -325,8 +321,6 @@ TasteAI Studio embodies the **Elastic Challenge vision** — transforming how pe
 | 💬 **Context-Aware** | Conversational memory and context retention |
 | ⚙️ **Production-Ready** | Real hybrid search system, not a demo |
 | 🌍 **Real-World Impact** | Deploy AI assistants in minutes |
-
-TasteAI Studio shows how **Elastic + Google Cloud** can reimagine human–AI interaction — making conversational AI accessible to everyone.
 
 ---
 
@@ -338,5 +332,4 @@ TasteAI Studio shows how **Elastic + Google Cloud** can reimagine human–AI int
 
 ---
 
-**Built with ❤️ using Elasticsearch Hybrid Search + Google Cloud Vertex AI**  
-_for the Elastic Challenge 2025._
+**Built with ❤️ by Chirag Goel**  
