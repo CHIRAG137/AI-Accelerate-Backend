@@ -157,6 +157,10 @@ Once a bot is created, users get access to six powerful functionalities:
 
 ## 🧠 How We Built It
 
+### Google Chrome Built In-API - Summarisation API
+
+The Summarisation API helped in Summarising the chat sessions without use of Paid APIs therefore cutting cost in platforms where its supported else we used the Gemini to summarise the chat sessions where its not supported. 
+
 ### 🔍 Elastic Stack – The Search Foundation
 
 Elasticsearch powers our **hybrid knowledge retrieval system**, providing enterprise-grade search capabilities.
